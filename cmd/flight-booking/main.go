@@ -23,7 +23,7 @@ func main() {
 
 	log := sLogger.SetupLogger(cfg.Env)
 
-	log.Info("starting url-shortener", slog.String("env", cfg.Env))
+	log.Info("starting flight-booking", slog.String("env", cfg.Env))
 
 	router := chi.NewRouter()
 
