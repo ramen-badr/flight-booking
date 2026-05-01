@@ -14,10 +14,10 @@ import (
 )
 
 type outboundSchedule struct {
-	DaysOfWeek  []int  `json:"daysOfWeek"`
-	Time        string `json:"time"`
-	FlightNo    string `json:"flightNo"`
-	Destination string `json:"destination"`
+	ID         string `json:"id"`
+	AirportID  string `json:"airportId"`
+	DaysOfWeek []int  `json:"daysOfWeek"`
+	Time       string `json:"time"`
 }
 
 func GetOutbound(log *slog.Logger, store storage.Storage) http.HandlerFunc {
@@ -47,10 +47,10 @@ func GetOutbound(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		items := make([]outboundSchedule, 0, len(schedule))
 		for _, item := range schedule {
 			items = append(items, outboundSchedule{
-				DaysOfWeek:  item.DaysOfWeek,
-				Time:        item.Time.Format("15:04:05"),
-				FlightNo:    item.ID,
-				Destination: item.AirportID,
+				ID:         item.ID,
+				AirportID:  item.AirportID,
+				DaysOfWeek: item.DaysOfWeek,
+				Time:       item.Time.Format("15:04:05"),
 			})
 		}
 

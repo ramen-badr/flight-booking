@@ -20,7 +20,7 @@ import (
 
 type flightResponse struct {
 	ID                 int       `json:"id"`
-	FlightNo           string    `json:"flightNo"`
+	RouteID            string    `json:"routeId"`
 	DepartureAirport   string    `json:"departureAirport"`
 	ArrivalAirport     string    `json:"arrivalAirport"`
 	ScheduledDeparture time.Time `json:"scheduledDeparture"`
@@ -218,7 +218,7 @@ func toFlightResponse(flights []models.Flight) []flightResponse {
 	for _, flight := range flights {
 		res = append(res, flightResponse{
 			ID:                 flight.ID,
-			FlightNo:           flight.RouteID,
+			RouteID:            flight.RouteID,
 			DepartureAirport:   flight.DepartureAirport,
 			ArrivalAirport:     flight.ArrivalAirport,
 			ScheduledDeparture: flight.ScheduledDeparture,

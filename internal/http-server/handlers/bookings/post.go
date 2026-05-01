@@ -96,12 +96,12 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 
 		render.JSON(w, r, struct {
 			response.Response
-			BookingID string `json:"bookingId"`
-			TicketID  string `json:"ticketId"`
+			ID       string `json:"id"`
+			TicketID string `json:"ticketId"`
 		}{
-			Response:  response.OK(),
-			BookingID: bookingID,
-			TicketID:  ticketID,
+			Response: response.OK(),
+			ID:       bookingID,
+			TicketID: ticketID,
 		})
 	}
 }
