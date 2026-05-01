@@ -317,17 +317,31 @@ func (s *Storage) HasBoardingPass(ticketID string, flightID int) (bool, error) {
 func (s *Storage) SaveBoardingPass(ticketID string, flightID int, seatID string) (int, error) {
 	const op = "storage.postgres.SaveBoardingPass"
 
-	var boardingNo int
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	defer tx.Rollback()
 
-	query := `
-		INSERT INTO bookings.boarding_passes (ticket_no, flight_id, seat_no, boarding_no, boarding_time)
-		VALUES ($1, $2, $3, (SELECT COALESCE(MAX(boarding_no), 0) + 1 FROM bookings.boarding_passes WHERE flight_id = $2), bookings.now())
-		RETURNING boarding_no
-	`
-
-	if err := s.db.QueryRow(query, ticketID, flightID, seatID).Scan(&boardingNo); err != nil {
+	if _, err = tx.Exec("SELECT pg_advisory_xact_lock($1)", flightID); err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return boardingNo, nil
+	var boardingNo int
+
+	if err = tx.Get(&boardingNo, "SELECT COALESCE(MAX(boarding_no), 0) + 1 FROM bookings.boarding_passes WHERE flight_id = $1", flightID); err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	query := `
+		INSERT INTO bookings.boarding_passes (ticket_no, flight_id, seat_no, boarding_no, boarding_time)
+		VALUES ($1, $2, $3, $4, bookings.now())
+		RETURNING boarding_no
+	`
+
+	if err = tx.QueryRow(query, ticketID, flightID, seatID, boardingNo).Scan(&boardingNo); err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return boardingNo, tx.Commit()
 }
