@@ -1,7 +1,6 @@
 package checkin
 
 import (
-	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -45,6 +44,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		alreadyCheckedIn, err := store.HasBoardingPass(req.TicketID, req.FlightID)
 		if err != nil {
 			log.Error("failed to check boarding pass", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
@@ -56,12 +56,13 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 
 		ticketSeatType, err := store.GetTicketSeatType(req.TicketID, req.FlightID)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, storage.ErrTicketNotFound) {
 				render.Status(r, http.StatusNotFound)
 				render.JSON(w, r, response.Error("ticket not found for flight"))
 				return
 			}
 			log.Error("failed to get ticket seat type", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
@@ -70,12 +71,13 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		if seatNo != "" {
 			seatType, err := store.GetSeatTypeForFlightSeat(req.FlightID, seatNo)
 			if err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
+				if errors.Is(err, storage.ErrSeatNotFound) {
 					render.Status(r, http.StatusNotFound)
 					render.JSON(w, r, response.Error("seat not found"))
 					return
 				}
 				log.Error("failed to get seat type", sLogger.Error(err))
+				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, response.Error("internal server error"))
 				return
 			}
@@ -89,6 +91,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			taken, err := store.IsSeatTaken(req.FlightID, seatNo)
 			if err != nil {
 				log.Error("failed to check seat availability", sLogger.Error(err))
+				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, response.Error("internal server error"))
 				return
 			}
@@ -100,12 +103,13 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		} else {
 			seatNo, err = store.GetAvailableSeat(req.FlightID, ticketSeatType)
 			if err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
+				if errors.Is(err, storage.ErrNoAvailableSeats) {
 					render.Status(r, http.StatusNotFound)
 					render.JSON(w, r, response.Error("no available seats"))
 					return
 				}
 				log.Error("failed to get available seat", sLogger.Error(err))
+				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, response.Error("internal server error"))
 				return
 			}
@@ -114,6 +118,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		boardingNo, err := store.SaveBoardingPass(req.TicketID, req.FlightID, seatNo)
 		if err != nil {
 			log.Error("failed to save boarding pass", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}

@@ -31,6 +31,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		airports, err := store.GetAirports(pointer.NilIfZeroValue(city))
 		if err != nil {
 			log.Error("failed to get airports", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}

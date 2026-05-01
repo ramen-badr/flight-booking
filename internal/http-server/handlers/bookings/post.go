@@ -63,6 +63,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		bookingID, err := randomString(6)
 		if err != nil {
 			log.Error("failed to generate booking id", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
@@ -70,6 +71,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		ticketID, err := randomString(13)
 		if err != nil {
 			log.Error("failed to generate ticket id", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
@@ -85,6 +87,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		})
 		if err != nil {
 			log.Error("failed to save booking", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}

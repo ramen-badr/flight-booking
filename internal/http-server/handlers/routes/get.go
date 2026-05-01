@@ -76,6 +76,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		fromAirports, err := store.GetAirportCodes(from)
 		if err != nil {
 			log.Error("failed to resolve origin airports", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
@@ -88,6 +89,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		toAirports, err := store.GetAirportCodes(to)
 		if err != nil {
 			log.Error("failed to resolve destination airports", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
@@ -100,6 +102,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		flights, err := store.GetFlights(departureDate, seatType)
 		if err != nil {
 			log.Error("failed to get flights", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}

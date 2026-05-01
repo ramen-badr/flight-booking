@@ -1,9 +1,16 @@
 package storage
 
 import (
+	"errors"
 	"time"
 
 	"flight-booking/internal/domain/models"
+)
+
+var (
+	ErrTicketNotFound   = errors.New("ticket not found")
+	ErrSeatNotFound     = errors.New("seat not found")
+	ErrNoAvailableSeats = errors.New("no available seats")
 )
 
 type Storage interface {

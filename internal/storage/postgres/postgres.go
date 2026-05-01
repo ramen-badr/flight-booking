@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 
 	"flight-booking/internal/config"
 	"flight-booking/internal/domain/models"
+	"flight-booking/internal/storage"
 )
 
 type Storage struct {
@@ -221,6 +224,9 @@ func (s *Storage) GetTicketSeatType(ticketID string, flightID int) (models.SeatT
 	`
 
 	if err := s.db.Get(&seatType, query, ticketID, flightID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, storage.ErrTicketNotFound)
+		}
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -241,6 +247,9 @@ func (s *Storage) GetSeatTypeForFlightSeat(flightID int, seatID string) (models.
 	`
 
 	if err := s.db.Get(&seatType, query, flightID, seatID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, storage.ErrSeatNotFound)
+		}
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -284,6 +293,9 @@ func (s *Storage) GetAvailableSeat(flightID int, seatType models.SeatType) (stri
 	`
 
 	if err := s.db.Get(&seatID, query, flightID, seatType); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, storage.ErrNoAvailableSeats)
+		}
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 

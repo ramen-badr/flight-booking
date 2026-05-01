@@ -39,6 +39,7 @@ func GetOutbound(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		schedule, err := store.GetOutboundSchedule(airportID)
 		if err != nil {
 			log.Error("failed to get outbound schedule", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
