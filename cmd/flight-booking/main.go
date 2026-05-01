@@ -39,7 +39,6 @@ func main() {
 	router.Use(middleware.URLFormat)
 
 	router.Get("/airports", airports.Get(log, store))
-	router.Get("/airports/{city}", airports.Get(log, store))
 	router.Get("/airports/{airportID}/inbound", airports.GetInbound(log, store))
 	router.Get("/airports/{airportID}/outbound", airports.GetOutbound(log, store))
 	router.Get("/cities", cities.Get(log, store))
