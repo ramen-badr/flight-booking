@@ -16,7 +16,7 @@ import (
 type checkInRequest struct {
 	TicketID string `json:"ticketId"`
 	FlightID int    `json:"flightId"`
-	SeatNo   string `json:"seatNo"`
+	SeatID   string `json:"seatId"`
 }
 
 func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
@@ -67,9 +67,9 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		seatNo := req.SeatNo
-		if seatNo != "" {
-			seatType, err := store.GetSeatTypeForFlightSeat(req.FlightID, seatNo)
+		seatID := req.SeatID
+		if seatID != "" {
+			seatType, err := store.GetSeatTypeForFlightSeat(req.FlightID, seatID)
 			if err != nil {
 				if errors.Is(err, storage.ErrSeatNotFound) {
 					render.Status(r, http.StatusNotFound)
@@ -88,7 +88,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 				return
 			}
 
-			taken, err := store.IsSeatTaken(req.FlightID, seatNo)
+			taken, err := store.IsSeatTaken(req.FlightID, seatID)
 			if err != nil {
 				log.Error("failed to check seat availability", sLogger.Error(err))
 				render.Status(r, http.StatusInternalServerError)
@@ -101,7 +101,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 				return
 			}
 		} else {
-			seatNo, err = store.GetAvailableSeat(req.FlightID, ticketSeatType)
+			seatID, err = store.GetAvailableSeat(req.FlightID, ticketSeatType)
 			if err != nil {
 				if errors.Is(err, storage.ErrNoAvailableSeats) {
 					render.Status(r, http.StatusNotFound)
@@ -115,7 +115,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			}
 		}
 
-		boardingNo, err := store.SaveBoardingPass(req.TicketID, req.FlightID, seatNo)
+		boardingID, err := store.SaveBoardingPass(req.TicketID, req.FlightID, seatID)
 		if err != nil {
 			log.Error("failed to save boarding pass", sLogger.Error(err))
 			render.Status(r, http.StatusInternalServerError)
@@ -127,12 +127,12 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 
 		render.JSON(w, r, struct {
 			response.Response
-			SeatNo     string `json:"seatNo"`
-			BoardingNo int    `json:"boardingNo"`
+			SeatID     string `json:"seatId"`
+			BoardingID int    `json:"boardingId"`
 		}{
 			Response:   response.OK(),
-			SeatNo:     seatNo,
-			BoardingNo: boardingNo,
+			SeatID:     seatID,
+			BoardingID: boardingID,
 		})
 	}
 }
