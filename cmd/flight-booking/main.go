@@ -9,7 +9,10 @@ import (
 
 	"flight-booking/internal/config"
 	"flight-booking/internal/http-server/handlers/airports"
+	"flight-booking/internal/http-server/handlers/bookings"
+	"flight-booking/internal/http-server/handlers/checkin"
 	"flight-booking/internal/http-server/handlers/cities"
+	"flight-booking/internal/http-server/handlers/routes"
 	"flight-booking/internal/http-server/middleware/mwLogger"
 	"flight-booking/internal/lib/logger/sLogger"
 	"flight-booking/internal/storage/postgres"
@@ -35,8 +38,14 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/airports/{city}", airports.Get(log, store))
+	router.Get("/airports", airports.Get(log, store))
+	router.Get("/airports/{city}", airports.Get(log, store))
+	router.Get("/airports/{airportID}/inbound", airports.GetInbound(log, store))
+	router.Get("/airports/{airportID}/outbound", airports.GetOutbound(log, store))
 	router.Get("/cities", cities.Get(log, store))
+	router.Get("/routes", routes.Get(log, store))
+	router.Post("/bookings", bookings.Create(log, store))
+	router.Post("/check-in", checkin.Create(log, store))
 
 	log.Info("starting server", slog.String("address", cfg.HTTPServer.Address))
 

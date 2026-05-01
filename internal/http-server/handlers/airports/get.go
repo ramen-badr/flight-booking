@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 
+	"flight-booking/internal/domain/models"
 	"flight-booking/internal/lib/api/response"
 	"flight-booking/internal/lib/logger/sLogger"
 	"flight-booking/internal/lib/pointer"
@@ -24,6 +25,9 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		)
 
 		city := chi.URLParam(r, "city")
+		if city == "" {
+			city = r.URL.Query().Get("city")
+		}
 
 		airports, err := store.GetAirports(pointer.NilIfZeroValue(city))
 		if err != nil {
@@ -36,7 +40,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 
 		render.JSON(w, r, struct {
 			response.Response
-			Airports []string `json:"airports,omitempty"`
+			Airports []models.Airport `json:"airports,omitempty"`
 		}{
 			Response: response.OK(),
 			Airports: airports,
