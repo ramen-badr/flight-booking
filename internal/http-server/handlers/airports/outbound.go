@@ -48,8 +48,8 @@ func GetOutbound(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			items = append(items, outboundSchedule{
 				DaysOfWeek:  item.DaysOfWeek,
 				Time:        item.Time.Format("15:04:05"),
-				FlightNo:    item.FlightNo,
-				Destination: item.Destination,
+				FlightNo:    item.ID,
+				Destination: item.AirportID,
 			})
 		}
 

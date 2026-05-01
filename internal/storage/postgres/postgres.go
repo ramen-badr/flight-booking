@@ -56,20 +56,18 @@ func (s *Storage) GetCities() ([]string, error) {
 	return res, nil
 }
 
-func (s *Storage) GetAirports(city *string) ([]models.Airport, error) {
+func (s *Storage) GetAirports(city *string) ([]string, error) {
 	const op = "storage.postgres.GetAirports"
 
-	var res []models.Airport
+	var res []string
 
 	query := `
 		SELECT DISTINCT
-			a.airport_code,
-			a.airport_name,
-			a.city
+			a.airport_name
 		FROM bookings.airports a
 		JOIN bookings.routes r ON r.departure_airport = a.airport_code OR r.arrival_airport = a.airport_code
 		WHERE $1 IS NULL OR a.city = $1
-		ORDER BY a.city, a.airport_name
+		ORDER BY a.airport_name
 	`
 
 	if err := s.db.Select(&res, query, city); err != nil {
@@ -98,16 +96,15 @@ func (s *Storage) GetAirportCodes(point string) ([]string, error) {
 	return res, nil
 }
 
-func (s *Storage) GetInboundSchedule(airportID string) ([]models.Schedule, error) {
+func (s *Storage) GetInboundSchedule(airportID string) ([]models.Route, error) {
 	const op = "storage.postgres.GetInboundSchedule"
 
-	var res []models.Schedule
+	var res []models.Route
 
 	query := `
 		SELECT
-		    route_no AS flight_no,
-		    departure_airport AS origin,
-		    arrival_airport AS destination,
+		    route_no AS id,
+		    departure_airport AS airport_id,
 			days_of_week,
 			scheduled_time + duration AS time
 		FROM bookings.routes
@@ -122,16 +119,15 @@ func (s *Storage) GetInboundSchedule(airportID string) ([]models.Schedule, error
 	return res, nil
 }
 
-func (s *Storage) GetOutboundSchedule(airportID string) ([]models.Schedule, error) {
+func (s *Storage) GetOutboundSchedule(airportID string) ([]models.Route, error) {
 	const op = "storage.postgres.GetOutboundSchedule"
 
-	var res []models.Schedule
+	var res []models.Route
 
 	query := `
 		SELECT
-		    route_no AS flight_no,
-		    departure_airport AS origin,
-		    arrival_airport AS destination,
+		    route_no AS id,
+		    arrival_airport AS airport_id,
 			days_of_week,
 			scheduled_time AS time
 		FROM bookings.routes

@@ -52,7 +52,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		seatType, err := models.ParseSeatType(seatClassParam)
+		seatType, err := parseSeatType(seatClassParam)
 		if err != nil {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("invalid booking class"))
@@ -156,6 +156,15 @@ func parseConnections(value string) (int, error) {
 		return 0, errors.New("unsupported connections value")
 	}
 	return connections, nil
+}
+
+func parseSeatType(value string) (models.SeatType, error) {
+	switch models.SeatType(value) {
+	case models.Economy, models.Comfort, models.Business:
+		return models.SeatType(value), nil
+	default:
+		return "", errors.New("unsupported seat type")
+	}
 }
 
 func searchRoutes(

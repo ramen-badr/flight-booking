@@ -8,10 +8,10 @@ import (
 
 type Storage interface {
 	GetCities() ([]string, error)
-	GetAirports(city *string) ([]models.Airport, error)
+	GetAirports(city *string) ([]string, error)
 	GetAirportCodes(point string) ([]string, error)
-	GetInboundSchedule(airportID string) ([]models.Schedule, error)
-	GetOutboundSchedule(airportID string) ([]models.Schedule, error)
+	GetInboundSchedule(airportID string) ([]models.Route, error)
+	GetOutboundSchedule(airportID string) ([]models.Route, error)
 	GetFlights(departureDate time.Time, seatType models.SeatType) ([]models.Flight, error)
 	SaveBooking(req models.Booking) error
 	GetTicketSeatType(ticketID string, flightID int) (models.SeatType, error)

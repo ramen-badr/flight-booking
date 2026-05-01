@@ -2,6 +2,7 @@ package bookings
 
 import (
 	"crypto/rand"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -45,7 +46,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		seatType, err := models.ParseSeatType(req.SeatType)
+		seatType, err := parseSeatType(req.SeatType)
 		if err != nil {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("invalid booking class"))
@@ -125,4 +126,13 @@ func randomString(length int) (string, error) {
 	}
 
 	return string(result), nil
+}
+
+func parseSeatType(value string) (models.SeatType, error) {
+	switch models.SeatType(value) {
+	case models.Economy, models.Comfort, models.Business:
+		return models.SeatType(value), nil
+	default:
+		return "", errors.New("unsupported seat type")
+	}
 }
