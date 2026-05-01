@@ -1,0 +1,11 @@
+# See: https://taskfile.dev/api/
+
+version: "3"
+
+tasks:
+  migrate:
+    aliases:
+      - migrations
+    desc: "Add migrations"
+    cmds:
+      - go run ./cmd/migrator --migrations-path=./migrations
