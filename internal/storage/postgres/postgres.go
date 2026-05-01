@@ -164,7 +164,8 @@ func (s *Storage) GetFlights(departureDate time.Time, seatType models.SeatType) 
 		  AND EXISTS (SELECT 1 FROM bookings.seats s WHERE s.airplane_code = r.airplane_code AND s.fare_conditions = $3)
 	`
 
-	if err := s.db.Select(&res, query, departureDate, departureDate.Add(24*time.Hour), seatType); err != nil {
+	rangeEnd := departureDate.AddDate(0, 0, 1)
+	if err := s.db.Select(&res, query, departureDate, rangeEnd, seatType); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
