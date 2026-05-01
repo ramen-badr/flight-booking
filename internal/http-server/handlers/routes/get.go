@@ -59,7 +59,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		departureDate, err := time.Parse("2006-01-02", dateParam)
+		departureDate, err := time.ParseInLocation("2006-01-02", dateParam, time.UTC)
 		if err != nil {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("invalid date format"))

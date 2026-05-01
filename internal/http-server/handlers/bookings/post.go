@@ -105,14 +105,24 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 func randomString(length int) (string, error) {
 	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
+	result := make([]byte, 0, length)
+	maxByte := byte(255 - (256 % len(charset)))
+
+	for len(result) < length {
+		buffer := make([]byte, length-len(result))
+		if _, err := rand.Read(buffer); err != nil {
+			return "", err
+		}
+		for _, value := range buffer {
+			if value > maxByte {
+				continue
+			}
+			result = append(result, charset[int(value)%len(charset)])
+			if len(result) == length {
+				break
+			}
+		}
 	}
 
-	for i := range bytes {
-		bytes[i] = charset[int(bytes[i])%len(charset)]
-	}
-
-	return string(bytes), nil
+	return string(result), nil
 }
