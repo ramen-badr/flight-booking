@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 
@@ -23,11 +22,12 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		city := chi.URLParam(r, "city")
+		city := r.URL.Query().Get("city")
 
 		airports, err := store.GetAirports(pointer.NilIfZeroValue(city))
 		if err != nil {
 			log.Error("failed to get airports", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}

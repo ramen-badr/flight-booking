@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 
 	"flight-booking/internal/config"
 	"flight-booking/internal/domain/models"
+	"flight-booking/internal/storage"
 )
 
 type Storage struct {
@@ -37,7 +40,15 @@ func (s *Storage) GetCities() ([]string, error) {
 
 	query := `
 		SELECT DISTINCT city
-		FROM bookings.airports
+		FROM (
+			SELECT dep.city AS city
+			FROM bookings.routes r
+			JOIN bookings.airports dep ON dep.airport_code = r.departure_airport
+			UNION
+			SELECT arr.city AS city
+			FROM bookings.routes r
+			JOIN bookings.airports arr ON arr.airport_code = r.arrival_airport
+		) cities
 		ORDER BY city
 	`
 
@@ -54,11 +65,12 @@ func (s *Storage) GetAirports(city *string) ([]string, error) {
 	var res []string
 
 	query := `
-		SELECT 
-		    airport_name,
-		FROM bookings.airports
-		WHERE $1 IS NULL OR city = $1
-		ORDER BY airport_name
+		SELECT DISTINCT
+			a.airport_name
+		FROM bookings.airports a
+		JOIN bookings.routes r ON r.departure_airport = a.airport_code OR r.arrival_airport = a.airport_code
+		WHERE $1 IS NULL OR a.city = $1
+		ORDER BY a.airport_name
 	`
 
 	if err := s.db.Select(&res, query, city); err != nil {
@@ -68,19 +80,39 @@ func (s *Storage) GetAirports(city *string) ([]string, error) {
 	return res, nil
 }
 
-func (s *Storage) GetInboundRoutes(airportID string) ([]models.Route, error) {
-	const op = "storage.postgres.GetInboundRoutes"
+func (s *Storage) GetAirportCodes(point string) ([]string, error) {
+	const op = "storage.postgres.GetAirportCodes"
+
+	var res []string
+
+	query := `
+		SELECT airport_code
+		FROM bookings.airports
+		WHERE airport_code ILIKE $1 OR city ILIKE $1
+		ORDER BY airport_code
+	`
+
+	if err := s.db.Select(&res, query, point); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return res, nil
+}
+
+func (s *Storage) GetInboundSchedule(airportID string) ([]models.Route, error) {
+	const op = "storage.postgres.GetInboundSchedule"
 
 	var res []models.Route
 
 	query := `
-		SELECT 
+		SELECT
 		    route_no AS id,
 		    departure_airport AS airport_id,
 			days_of_week,
-			scheduled_time + duration AS time, 
+			scheduled_time + duration AS time
 		FROM bookings.routes
 		WHERE arrival_airport = $1
+		ORDER BY route_no
 	`
 
 	if err := s.db.Select(&res, query, airportID); err != nil {
@@ -90,19 +122,20 @@ func (s *Storage) GetInboundRoutes(airportID string) ([]models.Route, error) {
 	return res, nil
 }
 
-func (s *Storage) GetOutboundRoutes(airportID string) ([]models.Route, error) {
-	const op = "storage.postgres.GetOutboundRoutes"
+func (s *Storage) GetOutboundSchedule(airportID string) ([]models.Route, error) {
+	const op = "storage.postgres.GetOutboundSchedule"
 
 	var res []models.Route
 
 	query := `
-		SELECT 
+		SELECT
 		    route_no AS id,
 		    arrival_airport AS airport_id,
 			days_of_week,
-			scheduled_time AS time, 
+			scheduled_time AS time
 		FROM bookings.routes
-		WHERE arrival_airport = $1
+		WHERE departure_airport = $1
+		ORDER BY route_no
 	`
 
 	if err := s.db.Select(&res, query, airportID); err != nil {
@@ -118,20 +151,21 @@ func (s *Storage) GetFlights(departureDate time.Time, seatType models.SeatType) 
 	var res []models.Flight
 
 	query := `
-		SELECT 
-			f.flight_id AS id, 
-			f.route_no AS route_id, 
-			r.departure_airport, 
-			r.arrival_airport, 
-			f.scheduled_departure, 
-			f.scheduled_arrival,
+		SELECT
+			f.flight_id AS id,
+			f.route_no AS route_id,
+			r.departure_airport,
+			r.arrival_airport,
+			f.scheduled_departure,
+			f.scheduled_arrival
 		FROM bookings.flights f
 		JOIN bookings.routes r USING (route_no)
 		WHERE f.scheduled_departure >= $1 AND f.scheduled_departure < $2
 		  AND EXISTS (SELECT 1 FROM bookings.seats s WHERE s.airplane_code = r.airplane_code AND s.fare_conditions = $3)
 	`
 
-	if err := s.db.Select(&res, query, departureDate, departureDate.Add(3*24*time.Hour), seatType); err != nil {
+	rangeEnd := departureDate.AddDate(0, 0, 1)
+	if err := s.db.Select(&res, query, departureDate, rangeEnd, seatType); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -157,16 +191,16 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 	}
 
 	queryTicket := `
-		INSERT INTO bookings.tickets (ticket_no, book_ref, passenger_id, passenger_name) 
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO bookings.tickets (ticket_no, book_ref, passenger_id, passenger_name, outbound)
+		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	if _, err = tx.Exec(queryTicket, req.TicketID, req.ID, req.PassengerID, req.PassengerName); err != nil {
+	if _, err = tx.Exec(queryTicket, req.TicketID, req.ID, req.PassengerID, req.PassengerName, true); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	queryFlight := `
-		INSERT INTO bookings.ticket_flights (ticket_no, flight_id, fare_conditions, amount) 
+		INSERT INTO bookings.segments (ticket_no, flight_id, fare_conditions, price)
 		VALUES ($1, $2, $3, $4)
 	`
 
@@ -179,17 +213,144 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 	return fmt.Errorf("%s: %w", op, tx.Commit())
 }
 
-func (s *Storage) SaveBoardingPass(ticketID string, flightID int, seatID string) error {
-	const op = "storage.postgres.SaveBoardingPass"
+func (s *Storage) GetTicketSeatType(ticketID string, flightID int) (models.SeatType, error) {
+	const op = "storage.postgres.GetTicketSeatType"
+
+	var seatType models.SeatType
 
 	query := `
-		INSERT INTO bookings.boarding_passes (ticket_no, flight_id, seat_no, boarding_no) 
-		VALUES ($1, $2, $3, (SELECT COALESCE(MAX(boarding_no), 0) + 1 FROM bookings.boarding_passes WHERE flight_id = $2))
+		SELECT fare_conditions
+		FROM bookings.segments
+		WHERE ticket_no = $1 AND flight_id = $2
 	`
 
-	if _, err := s.db.Exec(query, ticketID, flightID, seatID); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+	if err := s.db.Get(&seatType, query, ticketID, flightID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, storage.ErrTicketNotFound)
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	return nil
+	return seatType, nil
+}
+
+func (s *Storage) GetSeatTypeForFlightSeat(flightID int, seatID string) (models.SeatType, error) {
+	const op = "storage.postgres.GetSeatTypeForFlightSeat"
+
+	var seatType models.SeatType
+
+	query := `
+		SELECT s.fare_conditions
+		FROM bookings.flights f
+		JOIN bookings.routes r ON r.route_no = f.route_no AND r.validity @> f.scheduled_departure
+		JOIN bookings.seats s ON s.airplane_code = r.airplane_code
+		WHERE f.flight_id = $1 AND s.seat_no = $2
+	`
+
+	if err := s.db.Get(&seatType, query, flightID, seatID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, storage.ErrSeatNotFound)
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return seatType, nil
+}
+
+func (s *Storage) IsSeatTaken(flightID int, seatID string) (bool, error) {
+	const op = "storage.postgres.IsSeatTaken"
+
+	var exists bool
+
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM bookings.boarding_passes
+			WHERE flight_id = $1 AND seat_no = $2
+		)
+	`
+
+	if err := s.db.Get(&exists, query, flightID, seatID); err != nil {
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return exists, nil
+}
+
+func (s *Storage) GetAvailableSeat(flightID int, seatType models.SeatType) (string, error) {
+	const op = "storage.postgres.GetAvailableSeat"
+
+	var seatID string
+
+	query := `
+		SELECT s.seat_no
+		FROM bookings.flights f
+		JOIN bookings.routes r ON r.route_no = f.route_no AND r.validity @> f.scheduled_departure
+		JOIN bookings.seats s ON s.airplane_code = r.airplane_code
+		LEFT JOIN bookings.boarding_passes bp ON bp.flight_id = f.flight_id AND bp.seat_no = s.seat_no
+		WHERE f.flight_id = $1 AND s.fare_conditions = $2 AND bp.seat_no IS NULL
+		ORDER BY s.seat_no
+		LIMIT 1
+	`
+
+	if err := s.db.Get(&seatID, query, flightID, seatType); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, storage.ErrNoAvailableSeats)
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return seatID, nil
+}
+
+func (s *Storage) HasBoardingPass(ticketID string, flightID int) (bool, error) {
+	const op = "storage.postgres.HasBoardingPass"
+
+	var exists bool
+
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM bookings.boarding_passes
+			WHERE ticket_no = $1 AND flight_id = $2
+		)
+	`
+
+	if err := s.db.Get(&exists, query, ticketID, flightID); err != nil {
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return exists, nil
+}
+
+func (s *Storage) SaveBoardingPass(ticketID string, flightID int, seatID string) (int, error) {
+	const op = "storage.postgres.SaveBoardingPass"
+
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.Exec("SELECT pg_advisory_xact_lock($1)", flightID); err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	var boardingNo int
+
+	if err = tx.Get(&boardingNo, "SELECT COALESCE(MAX(boarding_no), 0) + 1 FROM bookings.boarding_passes WHERE flight_id = $1", flightID); err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	query := `
+		INSERT INTO bookings.boarding_passes (ticket_no, flight_id, seat_no, boarding_no, boarding_time)
+		VALUES ($1, $2, $3, $4, bookings.now())
+		RETURNING boarding_no
+	`
+
+	if err = tx.QueryRow(query, ticketID, flightID, seatID, boardingNo).Scan(&boardingNo); err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return boardingNo, tx.Commit()
 }
