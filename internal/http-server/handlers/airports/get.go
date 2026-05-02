@@ -39,12 +39,12 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 
 		log.Info("airports got")
 
-		items := make([]airport, 0, len(airports))
-		for _, item := range airports {
-			items = append(items, airport{
+		items := make([]airport, len(airports))
+		for i, item := range airports {
+			items[i] = airport{
 				Code: item.Code,
 				Name: item.Name,
-			})
+			}
 		}
 
 		render.JSON(w, r, struct {
