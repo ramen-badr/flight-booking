@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"flight-booking/internal/domain/models"
 )
 
@@ -20,6 +22,7 @@ type Storage interface {
 	GetInboundSchedule(airportID string) ([]models.Route, error)
 	GetOutboundSchedule(airportID string) ([]models.Route, error)
 	GetFlights(departureDate time.Time, seatType models.SeatType) ([]models.Flight, error)
+	GetFlightPrices(flightIDs []int, seatType models.SeatType) (map[int]decimal.Decimal, error)
 	SaveBooking(req models.Booking) error
 	GetTicketSeatType(ticketID string, flightID int) (models.SeatType, error)
 	GetSeatTypeForFlightSeat(flightID int, seatID string) (models.SeatType, error)

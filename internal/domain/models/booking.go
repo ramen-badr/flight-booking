@@ -10,4 +10,5 @@ type Booking struct {
 	SeatType      SeatType
 	TotalAmount   decimal.Decimal
 	FlightIDs     []int
+	FlightPrices  []decimal.Decimal
 }

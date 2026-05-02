@@ -21,7 +21,6 @@ type createBookingRequest struct {
 	PassengerName string `json:"passengerName"`
 	SeatType      string `json:"seatType"`
 	FlightIDs     []int  `json:"flightIds"`
-	TotalAmount   string `json:"totalAmount"`
 }
 
 func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
@@ -40,7 +39,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		if req.PassengerID == "" || req.PassengerName == "" || req.SeatType == "" || len(req.FlightIDs) == 0 || req.TotalAmount == "" {
+		if req.PassengerID == "" || req.PassengerName == "" || req.SeatType == "" || len(req.FlightIDs) == 0 {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("missing required fields"))
 			return
@@ -53,11 +52,25 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		totalAmount, err := decimal.NewFromString(req.TotalAmount)
+		priceByFlightID, err := store.GetFlightPrices(req.FlightIDs, seatType)
 		if err != nil {
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, response.Error("invalid total amount"))
+			log.Error("failed to get flight prices", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, response.Error("internal server error"))
 			return
+		}
+
+		totalAmount := decimal.Zero
+		flightPrices := make([]decimal.Decimal, len(req.FlightIDs))
+		for index, flightID := range req.FlightIDs {
+			price, ok := priceByFlightID[flightID]
+			if !ok {
+				render.Status(r, http.StatusNotFound)
+				render.JSON(w, r, response.Error("flight not found"))
+				return
+			}
+			flightPrices[index] = price
+			totalAmount = totalAmount.Add(price)
 		}
 
 		bookingID, err := randomString(6)
@@ -84,6 +97,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			SeatType:      seatType,
 			TotalAmount:   totalAmount,
 			FlightIDs:     req.FlightIDs,
+			FlightPrices:  flightPrices,
 		})
 		if err != nil {
 			log.Error("failed to save booking", sLogger.Error(err))

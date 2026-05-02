@@ -172,8 +172,52 @@ func (s *Storage) GetFlights(departureDate time.Time, seatType models.SeatType) 
 	return res, nil
 }
 
+func (s *Storage) GetFlightPrices(flightIDs []int, seatType models.SeatType) (map[int]decimal.Decimal, error) {
+	const op = "storage.postgres.GetFlightPrices"
+
+	if len(flightIDs) == 0 {
+		return map[int]decimal.Decimal{}, nil
+	}
+
+	type flightPrice struct {
+		FlightID int             `db:"flight_id"`
+		Amount   decimal.Decimal `db:"amount"`
+	}
+
+	var rows []flightPrice
+
+	query := `
+		SELECT
+			flight_id,
+			MIN(amount) AS amount
+		FROM bookings.ticket_flights
+		WHERE flight_id = ANY($1) AND fare_conditions = $2
+		GROUP BY flight_id
+	`
+
+	if err := s.db.Select(&rows, query, flightIDs, seatType); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := make(map[int]decimal.Decimal, len(rows))
+	for _, row := range rows {
+		res[row.FlightID] = row.Amount
+	}
+
+	return res, nil
+}
+
 func (s *Storage) SaveBooking(req models.Booking) error {
 	const op = "storage.postgres.SaveBooking"
+
+	if len(req.FlightIDs) == 0 || len(req.FlightIDs) != len(req.FlightPrices) {
+		return fmt.Errorf("%s: invalid flight pricing", op)
+	}
+
+	totalAmount := decimal.Zero
+	for _, price := range req.FlightPrices {
+		totalAmount = totalAmount.Add(price)
+	}
 
 	tx, err := s.db.Beginx()
 	if err != nil {
@@ -186,7 +230,7 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		VALUES ($1, bookings.now(), $2)
 	`
 
-	if _, err = tx.Exec(queryBooking, req.ID, req.TotalAmount); err != nil {
+	if _, err = tx.Exec(queryBooking, req.ID, totalAmount); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -204,8 +248,8 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		VALUES ($1, $2, $3, $4)
 	`
 
-	for _, flightID := range req.FlightIDs {
-		if _, err = tx.Exec(queryFlight, req.TicketID, flightID, req.SeatType, req.TotalAmount.DivRound(decimal.NewFromInt(int64(len(req.FlightIDs))), 2)); err != nil {
+	for index, flightID := range req.FlightIDs {
+		if _, err = tx.Exec(queryFlight, req.TicketID, flightID, req.SeatType, req.FlightPrices[index]); err != nil {
 			return fmt.Errorf("%s: %w", op, err)
 		}
 	}
