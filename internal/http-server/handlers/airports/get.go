@@ -14,7 +14,7 @@ import (
 )
 
 type airport struct {
-	Code string `json:"code"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
@@ -42,7 +42,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		items := make([]airport, len(airports))
 		for i, item := range airports {
 			items[i] = airport{
-				Code: item.Code,
+				ID:   item.ID,
 				Name: item.Name,
 			}
 		}

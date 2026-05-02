@@ -59,15 +59,15 @@ func (s *Storage) GetCities() ([]string, error) {
 	return res, nil
 }
 
-func (s *Storage) GetAirports(city *string) ([]storage.Airport, error) {
+func (s *Storage) GetAirports(city *string) ([]models.Airport, error) {
 	const op = "storage.postgres.GetAirports"
 
-	var res []storage.Airport
+	var res []models.Airport
 
 	query := `
 		SELECT DISTINCT
-			a.airport_code,
-			a.airport_name
+			a.airport_code AS id,
+			a.airport_name AS name
 		FROM bookings.airports a
 		JOIN bookings.routes r ON r.departure_airport = a.airport_code OR r.arrival_airport = a.airport_code
 		WHERE $1 IS NULL OR a.city = $1
@@ -165,8 +165,7 @@ func (s *Storage) GetFlights(departureDate time.Time, seatType models.SeatType) 
 		  AND EXISTS (SELECT 1 FROM bookings.seats s WHERE s.airplane_code = r.airplane_code AND s.fare_conditions = $3)
 	`
 
-	rangeEnd := departureDate.AddDate(0, 0, 1)
-	if err := s.db.Select(&res, query, departureDate, rangeEnd, seatType); err != nil {
+	if err := s.db.Select(&res, query, departureDate, departureDate.AddDate(0, 0, 1), seatType); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -180,12 +179,10 @@ func (s *Storage) GetFlightPrices(flightIDs []int, seatType models.SeatType) (ma
 		return map[int]decimal.Decimal{}, nil
 	}
 
-	type flightPrice struct {
-		FlightID int             `db:"flight_id"`
-		Amount   decimal.Decimal `db:"amount"`
+	var rows []struct {
+		FlightID int
+		Amount   decimal.Decimal
 	}
-
-	var rows []flightPrice
 
 	query := `
 		SELECT DISTINCT ON (s.flight_id)
@@ -217,7 +214,7 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		return fmt.Errorf("%s: no flights provided", op)
 	}
 
-	totalAmount := decimal.Zero
+	var totalAmount decimal.Decimal
 	flightPrices := make([]decimal.Decimal, len(req.FlightIDs))
 	for index, flightID := range req.FlightIDs {
 		price, ok := req.FlightPrices[flightID]
@@ -393,9 +390,9 @@ func (s *Storage) SaveBoardingPass(ticketID string, flightID int, seatID string)
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	var boardingNo int
+	var boardingID int
 
-	if err = tx.Get(&boardingNo, "SELECT COALESCE(MAX(boarding_no), 0) + 1 FROM bookings.boarding_passes WHERE flight_id = $1", flightID); err != nil {
+	if err = tx.Get(&boardingID, "SELECT COALESCE(MAX(boarding_no), 0) + 1 FROM bookings.boarding_passes WHERE flight_id = $1", flightID); err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -405,9 +402,9 @@ func (s *Storage) SaveBoardingPass(ticketID string, flightID int, seatID string)
 		RETURNING boarding_no
 	`
 
-	if err = tx.QueryRow(query, ticketID, flightID, seatID, boardingNo).Scan(&boardingNo); err != nil {
+	if err = tx.QueryRow(query, ticketID, flightID, seatID, boardingID).Scan(&boardingID); err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return boardingNo, tx.Commit()
+	return boardingID, tx.Commit()
 }

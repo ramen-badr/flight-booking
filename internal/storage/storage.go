@@ -16,14 +16,9 @@ var (
 	ErrFlightNotFound   = errors.New("flight not found")
 )
 
-type Airport struct {
-	Code string `db:"airport_code"`
-	Name string `db:"airport_name"`
-}
-
 type Storage interface {
 	GetCities() ([]string, error)
-	GetAirports(city *string) ([]Airport, error)
+	GetAirports(city *string) ([]models.Airport, error)
 	GetAirportCodes(point string) ([]string, error)
 	GetInboundSchedule(airportID string) ([]models.Route, error)
 	GetOutboundSchedule(airportID string) ([]models.Route, error)
