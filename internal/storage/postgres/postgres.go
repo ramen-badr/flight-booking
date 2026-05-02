@@ -187,14 +187,14 @@ func (s *Storage) GetFlightPrices(flightIDs []int, seatType models.SeatType) (ma
 	var rows []flightPrice
 
 	query := `
-		SELECT DISTINCT ON (tf.flight_id)
-			tf.flight_id,
-			tf.amount
-		FROM bookings.ticket_flights tf
-		JOIN bookings.tickets t ON t.ticket_no = tf.ticket_no
+		SELECT DISTINCT ON (s.flight_id)
+			s.flight_id,
+			s.price AS amount
+		FROM bookings.segments s
+		JOIN bookings.tickets t ON t.ticket_no = s.ticket_no
 		JOIN bookings.bookings b ON b.book_ref = t.book_ref
-		WHERE tf.flight_id = ANY($1) AND tf.fare_conditions = $2
-		ORDER BY tf.flight_id, b.book_date DESC
+		WHERE s.flight_id = ANY($1) AND s.fare_conditions = $2
+		ORDER BY s.flight_id, b.book_date DESC
 	`
 
 	if err := s.db.Select(&rows, query, flightIDs, seatType); err != nil {
@@ -262,7 +262,11 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		}
 	}
 
-	return fmt.Errorf("%s: %w", op, tx.Commit())
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
 }
 
 func (s *Storage) GetTicketSeatType(ticketID string, flightID int) (models.SeatType, error) {
