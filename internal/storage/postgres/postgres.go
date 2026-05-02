@@ -66,11 +66,11 @@ func (s *Storage) GetAirports(city *string) ([]string, error) {
 
 	query := `
 		SELECT DISTINCT
-			a.airport_name
+			a.airport_code
 		FROM bookings.airports a
 		JOIN bookings.routes r ON r.departure_airport = a.airport_code OR r.arrival_airport = a.airport_code
 		WHERE $1 IS NULL OR a.city = $1
-		ORDER BY a.airport_name
+		ORDER BY a.airport_code
 	`
 
 	if err := s.db.Select(&res, query, city); err != nil {
