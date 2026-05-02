@@ -16,7 +16,7 @@ import (
 type outboundSchedule struct {
 	ID         string `json:"id"`
 	AirportID  string `json:"airportId"`
-	DaysOfWeek []int  `json:"daysOfWeek"`
+	DaysOfWeek string `json:"daysOfWeek"`
 	Time       string `json:"time"`
 }
 
@@ -50,7 +50,7 @@ func GetOutbound(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 				ID:         item.ID,
 				AirportID:  item.AirportID,
 				DaysOfWeek: item.DaysOfWeek,
-				Time:       item.Time.Format("15:04:05"),
+				Time:       item.Time,
 			})
 		}
 

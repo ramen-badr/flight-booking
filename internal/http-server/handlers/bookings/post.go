@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/shopspring/decimal"
 
 	"flight-booking/internal/domain/models"
 	"flight-booking/internal/lib/api/response"
@@ -21,7 +20,6 @@ type createBookingRequest struct {
 	PassengerName string `json:"passengerName"`
 	SeatType      string `json:"seatType"`
 	FlightIDs     []int  `json:"flightIds"`
-	TotalAmount   string `json:"totalAmount"`
 }
 
 func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
@@ -40,7 +38,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		if req.PassengerID == "" || req.PassengerName == "" || req.SeatType == "" || len(req.FlightIDs) == 0 || req.TotalAmount == "" {
+		if req.PassengerID == "" || req.PassengerName == "" || req.SeatType == "" || len(req.FlightIDs) == 0 {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("missing required fields"))
 			return
@@ -53,12 +51,22 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		totalAmount, err := decimal.NewFromString(req.TotalAmount)
+		priceByFlightID, err := store.GetFlightPrices(req.FlightIDs, seatType)
 		if err != nil {
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, response.Error("invalid total amount"))
+			log.Error("failed to get flight prices", sLogger.Error(err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
+		uniqueFlights := make(map[int]struct{}, len(req.FlightIDs))
+		for _, flightID := range req.FlightIDs {
+			uniqueFlights[flightID] = struct{}{}
+		}
+	if len(priceByFlightID) != len(uniqueFlights) {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, response.Error("one or more flights not found"))
+		return
+	}
 
 		bookingID, err := randomString(6)
 		if err != nil {
@@ -82,10 +90,15 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			PassengerID:   req.PassengerID,
 			PassengerName: req.PassengerName,
 			SeatType:      seatType,
-			TotalAmount:   totalAmount,
 			FlightIDs:     req.FlightIDs,
+			FlightPrices:  priceByFlightID,
 		})
 		if err != nil {
+			if errors.Is(err, storage.ErrFlightNotFound) {
+				render.Status(r, http.StatusNotFound)
+				render.JSON(w, r, response.Error("flight not found"))
+				return
+			}
 			log.Error("failed to save booking", sLogger.Error(err))
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))
