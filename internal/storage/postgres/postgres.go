@@ -223,7 +223,7 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 	for _, flightID := range req.FlightIDs {
 		price, ok := req.FlightPrices[flightID]
 		if !ok {
-			return fmt.Errorf("%s: missing price for flight %d", op, flightID)
+			return fmt.Errorf("%s: %w: flight %d", op, storage.ErrFlightNotFound, flightID)
 		}
 		totalAmount = totalAmount.Add(price)
 	}
@@ -260,7 +260,7 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 	for _, flightID := range req.FlightIDs {
 		price, ok := req.FlightPrices[flightID]
 		if !ok {
-			return fmt.Errorf("%s: missing price for flight %d", op, flightID)
+			return fmt.Errorf("%s: %w: flight %d", op, storage.ErrFlightNotFound, flightID)
 		}
 		if _, err = tx.Exec(queryFlight, req.TicketID, flightID, req.SeatType, price); err != nil {
 			return fmt.Errorf("%s: %w", op, err)

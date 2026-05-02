@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/shopspring/decimal"
 
 	"flight-booking/internal/domain/models"
 	"flight-booking/internal/lib/api/response"
@@ -59,16 +58,10 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
-
-		totalAmount := decimal.Zero
-		for _, flightID := range req.FlightIDs {
-			price, ok := priceByFlightID[flightID]
-			if !ok {
-				render.Status(r, http.StatusNotFound)
-				render.JSON(w, r, response.Error("flight not found"))
-				return
-			}
-			totalAmount = totalAmount.Add(price)
+		if len(priceByFlightID) == 0 {
+			render.Status(r, http.StatusNotFound)
+			render.JSON(w, r, response.Error("flight not found"))
+			return
 		}
 
 		bookingID, err := randomString(6)
@@ -93,11 +86,15 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			PassengerID:   req.PassengerID,
 			PassengerName: req.PassengerName,
 			SeatType:      seatType,
-			TotalAmount:   totalAmount,
 			FlightIDs:     req.FlightIDs,
 			FlightPrices:  priceByFlightID,
 		})
 		if err != nil {
+			if errors.Is(err, storage.ErrFlightNotFound) {
+				render.Status(r, http.StatusNotFound)
+				render.JSON(w, r, response.Error("flight not found"))
+				return
+			}
 			log.Error("failed to save booking", sLogger.Error(err))
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal server error"))

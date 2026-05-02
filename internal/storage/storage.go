@@ -13,6 +13,7 @@ var (
 	ErrTicketNotFound   = errors.New("ticket not found")
 	ErrSeatNotFound     = errors.New("seat not found")
 	ErrNoAvailableSeats = errors.New("no available seats")
+	ErrFlightNotFound   = errors.New("flight not found")
 )
 
 type Storage interface {
