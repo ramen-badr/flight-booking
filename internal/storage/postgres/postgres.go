@@ -187,12 +187,14 @@ func (s *Storage) GetFlightPrices(flightIDs []int, seatType models.SeatType) (ma
 	var rows []flightPrice
 
 	query := `
-		SELECT
-			flight_id,
-			MIN(amount) AS amount
-		FROM bookings.ticket_flights
-		WHERE flight_id = ANY($1) AND fare_conditions = $2
-		GROUP BY flight_id
+		SELECT DISTINCT ON (tf.flight_id)
+			tf.flight_id,
+			tf.amount
+		FROM bookings.ticket_flights tf
+		JOIN bookings.tickets t ON t.ticket_no = tf.ticket_no
+		JOIN bookings.bookings b ON b.book_ref = t.book_ref
+		WHERE tf.flight_id = ANY($1) AND tf.fare_conditions = $2
+		ORDER BY tf.flight_id, b.book_date DESC
 	`
 
 	if err := s.db.Select(&rows, query, flightIDs, seatType); err != nil {
@@ -214,7 +216,7 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		return fmt.Errorf("%s: no flights provided", op)
 	}
 	if len(req.FlightIDs) != len(req.FlightPrices) {
-		return fmt.Errorf("%s: flight prices count does not match flights", op)
+		return fmt.Errorf("%s: flight prices count (%d) does not match flights count (%d)", op, len(req.FlightPrices), len(req.FlightIDs))
 	}
 
 	totalAmount := decimal.Zero
