@@ -59,14 +59,15 @@ func (s *Storage) GetCities() ([]string, error) {
 	return res, nil
 }
 
-func (s *Storage) GetAirports(city *string) ([]string, error) {
+func (s *Storage) GetAirports(city *string) ([]storage.Airport, error) {
 	const op = "storage.postgres.GetAirports"
 
-	var res []string
+	var res []storage.Airport
 
 	query := `
 		SELECT DISTINCT
-			a.airport_code
+			a.airport_code,
+			a.airport_name
 		FROM bookings.airports a
 		JOIN bookings.routes r ON r.departure_airport = a.airport_code OR r.arrival_airport = a.airport_code
 		WHERE $1 IS NULL OR a.city = $1

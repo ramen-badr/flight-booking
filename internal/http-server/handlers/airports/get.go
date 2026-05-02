@@ -13,6 +13,11 @@ import (
 	"flight-booking/internal/storage"
 )
 
+type airport struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
 func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.airports.get.New"
@@ -34,12 +39,20 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 
 		log.Info("airports got")
 
+		items := make([]airport, 0, len(airports))
+		for _, item := range airports {
+			items = append(items, airport{
+				Code: item.Code,
+				Name: item.Name,
+			})
+		}
+
 		render.JSON(w, r, struct {
 			response.Response
-			Airports []string `json:"airports,omitempty"`
+			Airports []airport `json:"airports,omitempty"`
 		}{
 			Response: response.OK(),
-			Airports: airports,
+			Airports: items,
 		})
 	}
 }
