@@ -62,11 +62,11 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		for _, flightID := range req.FlightIDs {
 			uniqueFlights[flightID] = struct{}{}
 		}
-		if len(priceByFlightID) != len(uniqueFlights) {
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, response.Error("flight not found"))
-			return
-		}
+	if len(priceByFlightID) != len(uniqueFlights) {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, response.Error("one or more flights not found"))
+		return
+	}
 
 		bookingID, err := randomString(6)
 		if err != nil {

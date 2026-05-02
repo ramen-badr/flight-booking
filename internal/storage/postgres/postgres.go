@@ -215,9 +215,6 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 	if len(req.FlightIDs) == 0 {
 		return fmt.Errorf("%s: no flights provided", op)
 	}
-	if len(req.FlightPrices) == 0 {
-		return fmt.Errorf("%s: no flight prices provided", op)
-	}
 
 	totalAmount := decimal.Zero
 	flightPrices := make([]decimal.Decimal, len(req.FlightIDs))
