@@ -70,7 +70,7 @@ func (s *Storage) GetAirports(city *string) ([]models.Airport, error) {
 			a.airport_name AS name
 		FROM bookings.airports a
 		JOIN bookings.routes r ON r.departure_airport = a.airport_code OR r.arrival_airport = a.airport_code
-		WHERE $1 IS NULL OR a.city = $1
+		WHERE $1::text IS NULL OR a.city = $1
 		ORDER BY a.airport_code
 	`
 
