@@ -210,8 +210,11 @@ func (s *Storage) GetFlightPrices(flightIDs []int, seatType models.SeatType) (ma
 func (s *Storage) SaveBooking(req models.Booking) error {
 	const op = "storage.postgres.SaveBooking"
 
-	if len(req.FlightIDs) == 0 || len(req.FlightIDs) != len(req.FlightPrices) {
-		return fmt.Errorf("%s: invalid flight pricing", op)
+	if len(req.FlightIDs) == 0 {
+		return fmt.Errorf("%s: no flights provided", op)
+	}
+	if len(req.FlightIDs) != len(req.FlightPrices) {
+		return fmt.Errorf("%s: flight prices count does not match flights", op)
 	}
 
 	totalAmount := decimal.Zero

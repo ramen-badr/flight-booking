@@ -61,15 +61,15 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		}
 
 		totalAmount := decimal.Zero
-		flightPrices := make([]decimal.Decimal, len(req.FlightIDs))
-		for index, flightID := range req.FlightIDs {
+		flightPrices := make([]decimal.Decimal, 0, len(req.FlightIDs))
+		for _, flightID := range req.FlightIDs {
 			price, ok := priceByFlightID[flightID]
 			if !ok {
 				render.Status(r, http.StatusNotFound)
 				render.JSON(w, r, response.Error("flight not found"))
 				return
 			}
-			flightPrices[index] = price
+			flightPrices = append(flightPrices, price)
 			totalAmount = totalAmount.Add(price)
 		}
 
