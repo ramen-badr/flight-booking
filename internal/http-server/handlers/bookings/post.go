@@ -61,7 +61,6 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		}
 
 		totalAmount := decimal.Zero
-		flightPrices := make([]decimal.Decimal, 0, len(req.FlightIDs))
 		for _, flightID := range req.FlightIDs {
 			price, ok := priceByFlightID[flightID]
 			if !ok {
@@ -69,7 +68,6 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 				render.JSON(w, r, response.Error("flight not found"))
 				return
 			}
-			flightPrices = append(flightPrices, price)
 			totalAmount = totalAmount.Add(price)
 		}
 
@@ -97,7 +95,7 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			SeatType:      seatType,
 			TotalAmount:   totalAmount,
 			FlightIDs:     req.FlightIDs,
-			FlightPrices:  flightPrices,
+			FlightPrices:  priceByFlightID,
 		})
 		if err != nil {
 			log.Error("failed to save booking", sLogger.Error(err))

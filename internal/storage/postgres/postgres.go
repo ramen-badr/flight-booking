@@ -215,12 +215,16 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 	if len(req.FlightIDs) == 0 {
 		return fmt.Errorf("%s: no flights provided", op)
 	}
-	if len(req.FlightIDs) != len(req.FlightPrices) {
-		return fmt.Errorf("%s: flight prices count (%d) does not match flights count (%d)", op, len(req.FlightPrices), len(req.FlightIDs))
+	if len(req.FlightPrices) == 0 {
+		return fmt.Errorf("%s: no flight prices provided", op)
 	}
 
 	totalAmount := decimal.Zero
-	for _, price := range req.FlightPrices {
+	for _, flightID := range req.FlightIDs {
+		price, ok := req.FlightPrices[flightID]
+		if !ok {
+			return fmt.Errorf("%s: missing price for flight %d", op, flightID)
+		}
 		totalAmount = totalAmount.Add(price)
 	}
 
@@ -253,8 +257,12 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		VALUES ($1, $2, $3, $4)
 	`
 
-	for index, flightID := range req.FlightIDs {
-		if _, err = tx.Exec(queryFlight, req.TicketID, flightID, req.SeatType, req.FlightPrices[index]); err != nil {
+	for _, flightID := range req.FlightIDs {
+		price, ok := req.FlightPrices[flightID]
+		if !ok {
+			return fmt.Errorf("%s: missing price for flight %d", op, flightID)
+		}
+		if _, err = tx.Exec(queryFlight, req.TicketID, flightID, req.SeatType, price); err != nil {
 			return fmt.Errorf("%s: %w", op, err)
 		}
 	}
