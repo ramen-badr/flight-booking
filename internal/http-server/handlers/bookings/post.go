@@ -58,7 +58,11 @@ func Create(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			render.JSON(w, r, response.Error("internal server error"))
 			return
 		}
-		if len(priceByFlightID) == 0 {
+		uniqueFlights := make(map[int]struct{}, len(req.FlightIDs))
+		for _, flightID := range req.FlightIDs {
+			uniqueFlights[flightID] = struct{}{}
+		}
+		if len(priceByFlightID) != len(uniqueFlights) {
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, response.Error("flight not found"))
 			return

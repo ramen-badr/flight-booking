@@ -220,11 +220,13 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 	}
 
 	totalAmount := decimal.Zero
-	for _, flightID := range req.FlightIDs {
+	flightPrices := make([]decimal.Decimal, len(req.FlightIDs))
+	for index, flightID := range req.FlightIDs {
 		price, ok := req.FlightPrices[flightID]
 		if !ok {
 			return fmt.Errorf("%s: %w: flight %d", op, storage.ErrFlightNotFound, flightID)
 		}
+		flightPrices[index] = price
 		totalAmount = totalAmount.Add(price)
 	}
 
@@ -257,12 +259,8 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		VALUES ($1, $2, $3, $4)
 	`
 
-	for _, flightID := range req.FlightIDs {
-		price, ok := req.FlightPrices[flightID]
-		if !ok {
-			return fmt.Errorf("%s: %w: flight %d", op, storage.ErrFlightNotFound, flightID)
-		}
-		if _, err = tx.Exec(queryFlight, req.TicketID, flightID, req.SeatType, price); err != nil {
+	for index, flightID := range req.FlightIDs {
+		if _, err = tx.Exec(queryFlight, req.TicketID, flightID, req.SeatType, flightPrices[index]); err != nil {
 			return fmt.Errorf("%s: %w", op, err)
 		}
 	}
