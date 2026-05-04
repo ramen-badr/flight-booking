@@ -25,8 +25,8 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		flightIDsParam := strings.TrimSpace(r.URL.Query().Get("flightIds"))
-		seatClassParam := strings.TrimSpace(r.URL.Query().Get("class"))
+		flightIDsParam := r.URL.Query().Get("flightIds")
+		seatClassParam := r.URL.Query().Get("class")
 		if flightIDsParam == "" || seatClassParam == "" {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("flightIds and class are required"))
@@ -72,7 +72,6 @@ func parseFlightIDs(value string) ([]int, error) {
 	ids := make([]int, 0, len(parts))
 	seen := make(map[int]struct{}, len(parts))
 	for _, part := range parts {
-		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}

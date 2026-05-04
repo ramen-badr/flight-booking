@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/iancoleman/strcase"
@@ -36,11 +35,10 @@ func New(cfg config.Storage) (*Storage, error) {
 }
 
 func formatSearchPattern(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
+	if value == "" {
 		return ""
 	}
-	return "%" + trimmed + "%"
+	return "%" + value + "%"
 }
 
 func (s *Storage) GetCities() ([]string, error) {
@@ -105,20 +103,19 @@ func (s *Storage) GetAirportCodes(point string) ([]string, error) {
 
 	var res []string
 
-	var patternFilter *string
-	pattern := formatSearchPattern(point)
-	if pattern != "" {
-		patternFilter = &pattern
-	}
-
 	query := `
 		SELECT airport_code
 		FROM bookings.airports
-		WHERE $1::text IS NULL OR airport_code ILIKE $1 OR city ILIKE $1
+		WHERE $1::text IS NULL OR airport_code = $1 OR city = $1
 		ORDER BY airport_code
 	`
 
-	if err := s.db.Select(&res, query, patternFilter); err != nil {
+	var pointFilter *string
+	if point != "" {
+		pointFilter = &point
+	}
+
+	if err := s.db.Select(&res, query, pointFilter); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
