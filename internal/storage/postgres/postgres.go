@@ -105,19 +105,20 @@ func (s *Storage) GetAirportCodes(point string) ([]string, error) {
 
 	var res []string
 
+	var patternFilter *string
 	pattern := formatSearchPattern(point)
-	if pattern == "" {
-		pattern = "%"
+	if pattern != "" {
+		patternFilter = &pattern
 	}
 
 	query := `
 		SELECT airport_code
 		FROM bookings.airports
-		WHERE airport_code ILIKE $1 OR city ILIKE $1
+		WHERE $1::text IS NULL OR airport_code ILIKE $1 OR city ILIKE $1
 		ORDER BY airport_code
 	`
 
-	if err := s.db.Select(&res, query, pattern); err != nil {
+	if err := s.db.Select(&res, query, patternFilter); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 

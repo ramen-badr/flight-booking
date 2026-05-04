@@ -9,20 +9,12 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/shopspring/decimal"
 
 	"flight-booking/internal/domain/models"
 	"flight-booking/internal/lib/api/response"
 	"flight-booking/internal/lib/logger/sLogger"
 	"flight-booking/internal/storage"
 )
-
-type pricingItem struct {
-	FlightID       int              `json:"flightId"`
-	ActualPrice    *decimal.Decimal `json:"actualPrice,omitempty"`
-	PredictedPrice *decimal.Decimal `json:"predictedPrice,omitempty"`
-	Ratio          *decimal.Decimal `json:"ratio,omitempty"`
-}
 
 func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -63,24 +55,14 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		items := make([]pricingItem, 0, len(pricing))
-		for _, item := range pricing {
-			items = append(items, pricingItem{
-				FlightID:       item.FlightID,
-				ActualPrice:    item.ActualPrice,
-				PredictedPrice: item.PredictedPrice,
-				Ratio:          item.Ratio,
-			})
-		}
-
 		log.Info("pricing got")
 
 		render.JSON(w, r, struct {
 			response.Response
-			Pricing []pricingItem `json:"pricing,omitempty"`
+			Pricing []models.Pricing `json:"pricing,omitempty"`
 		}{
 			Response: response.OK(),
-			Pricing:  items,
+			Pricing:  pricing,
 		})
 	}
 }
