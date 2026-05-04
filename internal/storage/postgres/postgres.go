@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -31,6 +32,13 @@ func New(cfg config.Storage) (*Storage, error) {
 	db.MapperFunc(strcase.ToSnake)
 
 	return &Storage{db: db}, nil
+}
+
+func formatSearchPattern(val *string) *string {
+	if val != nil {
+		return new("%" + *val + "%")
+	}
+	return val
 }
 
 func (s *Storage) GetCities() ([]string, error) {
@@ -67,14 +75,15 @@ func (s *Storage) GetAirports(city *string) ([]models.Airport, error) {
 	query := `
 		SELECT DISTINCT
 			a.airport_code AS id,
-			a.airport_name AS name
+			a.airport_name AS name,
+			a.city AS city_name
 		FROM bookings.airports a
 		JOIN bookings.routes r ON r.departure_airport = a.airport_code OR r.arrival_airport = a.airport_code
-		WHERE $1::text IS NULL OR a.city = $1
+		WHERE $1::text IS NULL OR a.city ILIKE $1
 		ORDER BY a.airport_code
 	`
 
-	if err := s.db.Select(&res, query, city); err != nil {
+	if err := s.db.Select(&res, query, formatSearchPattern(city)); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -207,6 +216,62 @@ func (s *Storage) GetFlightPrices(flightIDs []int, seatType models.SeatType) (ma
 	return res, nil
 }
 
+func (s *Storage) GetPricing(flightIDs []int, seatType models.SeatType) ([]models.Pricing, error) {
+	const op = "storage.postgres.GetPricing"
+
+	if len(flightIDs) == 0 {
+		return []models.Pricing{}, nil
+	}
+
+	var res []models.Pricing
+
+	query := `
+		WITH actual AS (
+			SELECT flight_id, actual_price
+			FROM (
+				SELECT
+					s.flight_id,
+					s.price AS actual_price,
+					ROW_NUMBER() OVER (PARTITION BY s.flight_id ORDER BY b.book_date DESC) AS row_num
+				FROM bookings.segments s
+				JOIN bookings.tickets t ON t.ticket_no = s.ticket_no
+				JOIN bookings.bookings b ON b.book_ref = t.book_ref
+				WHERE s.flight_id = ANY($1) AND s.fare_conditions = $2
+			) ranked
+			WHERE row_num = 1
+		),
+		predicted AS (
+			SELECT f.route_no, AVG(s.price) AS predicted_price
+			FROM bookings.flights f
+			JOIN bookings.segments s ON s.flight_id = f.flight_id
+			WHERE s.fare_conditions = $2
+			  AND f.route_no IN (SELECT route_no FROM bookings.flights WHERE flight_id = ANY($1))
+			GROUP BY f.route_no
+		)
+		SELECT
+			f.flight_id,
+			a.actual_price,
+			p.predicted_price,
+			CASE
+				WHEN a.actual_price IS NOT NULL AND p.predicted_price IS NOT NULL AND p.predicted_price > 0
+				THEN a.actual_price / p.predicted_price
+			END AS ratio
+		FROM bookings.flights f
+		JOIN bookings.routes r ON r.route_no = f.route_no AND r.validity @> f.scheduled_departure
+		LEFT JOIN actual a ON a.flight_id = f.flight_id
+		LEFT JOIN predicted p ON p.route_no = f.route_no
+		WHERE f.flight_id = ANY($1)
+		  AND EXISTS (SELECT 1 FROM bookings.seats s WHERE s.airplane_code = r.airplane_code AND s.fare_conditions = $2)
+		ORDER BY f.flight_id
+	`
+
+	if err := s.db.Select(&res, query, flightIDs, seatType); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return res, nil
+}
+
 func (s *Storage) SaveBooking(req models.Booking) error {
 	const op = "storage.postgres.SaveBooking"
 
@@ -225,7 +290,7 @@ func (s *Storage) SaveBooking(req models.Booking) error {
 		totalAmount = totalAmount.Add(price)
 	}
 
-	tx, err := s.db.Beginx()
+	tx, err := s.db.BeginTxx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -380,7 +445,7 @@ func (s *Storage) HasBoardingPass(ticketID string, flightID int) (bool, error) {
 func (s *Storage) SaveBoardingPass(ticketID string, flightID int, seatID string) (int, error) {
 	const op = "storage.postgres.SaveBoardingPass"
 
-	tx, err := s.db.Beginx()
+	tx, err := s.db.BeginTxx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}

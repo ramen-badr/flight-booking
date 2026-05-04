@@ -3,6 +3,7 @@ package airports
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -29,7 +30,7 @@ func GetInbound(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		airportID := chi.URLParam(r, "airportID")
+		airportID := strings.TrimSpace(chi.URLParam(r, "airportID"))
 		if airportID == "" {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("airport id is required"))

@@ -3,6 +3,7 @@ package airports
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
@@ -14,8 +15,9 @@ import (
 )
 
 type airport struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	CityName string `json:"cityName"`
 }
 
 func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
@@ -27,7 +29,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		city := r.URL.Query().Get("city")
+		city := strings.TrimSpace(r.URL.Query().Get("city"))
 
 		airports, err := store.GetAirports(pointer.NilIfZeroValue(city))
 		if err != nil {
@@ -42,8 +44,9 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 		items := make([]airport, len(airports))
 		for i, item := range airports {
 			items[i] = airport{
-				ID:   item.ID,
-				Name: item.Name,
+				ID:       item.ID,
+				Name:     item.Name,
+				CityName: item.CityName,
 			}
 		}
 
