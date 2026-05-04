@@ -262,6 +262,7 @@ func (s *Storage) GetPricing(flightIDs []int, seatType models.SeatType) ([]model
 			FROM bookings.flights f
 			JOIN bookings.segments s ON s.flight_id = f.flight_id
 			WHERE s.fare_conditions = $2
+			  AND f.route_no IN (SELECT route_no FROM bookings.flights WHERE flight_id = ANY($1))
 			GROUP BY f.route_no
 		)
 		SELECT
