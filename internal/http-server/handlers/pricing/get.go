@@ -63,9 +63,9 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		if len(pricing) != len(flightIDs) {
+		if len(pricing) == 0 {
 			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, response.Error("one or more flights not found"))
+			render.JSON(w, r, response.Error("flights not found"))
 			return
 		}
 

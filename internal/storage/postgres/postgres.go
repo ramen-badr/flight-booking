@@ -242,14 +242,18 @@ func (s *Storage) GetPricing(flightIDs []int, seatType models.SeatType) ([]model
 
 	query := `
 		WITH actual AS (
-			SELECT DISTINCT ON (s.flight_id)
-				s.flight_id,
-				s.price AS actual_price
-			FROM bookings.segments s
-			JOIN bookings.tickets t ON t.ticket_no = s.ticket_no
-			JOIN bookings.bookings b ON b.book_ref = t.book_ref
-			WHERE s.flight_id = ANY($1) AND s.fare_conditions = $2
-			ORDER BY s.flight_id, b.book_date DESC
+			SELECT flight_id, actual_price
+			FROM (
+				SELECT
+					s.flight_id,
+					s.price AS actual_price,
+					ROW_NUMBER() OVER (PARTITION BY s.flight_id ORDER BY b.book_date DESC) AS row_num
+				FROM bookings.segments s
+				JOIN bookings.tickets t ON t.ticket_no = s.ticket_no
+				JOIN bookings.bookings b ON b.book_ref = t.book_ref
+				WHERE s.flight_id = ANY($1) AND s.fare_conditions = $2
+			) ranked
+			WHERE row_num = 1
 		),
 		predicted AS (
 			SELECT f.route_no, AVG(s.price) AS predicted_price
