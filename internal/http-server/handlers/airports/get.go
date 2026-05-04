@@ -3,6 +3,7 @@ package airports
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
@@ -28,7 +29,7 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		city := r.URL.Query().Get("city")
+		city := strings.TrimSpace(r.URL.Query().Get("city"))
 
 		airports, err := store.GetAirports(pointer.NilIfZeroValue(city))
 		if err != nil {

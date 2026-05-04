@@ -25,8 +25,8 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		flightIDsParam := r.URL.Query().Get("flightIds")
-		seatClassParam := r.URL.Query().Get("class")
+		flightIDsParam := strings.TrimSpace(r.URL.Query().Get("flightIds"))
+		seatClassParam := strings.TrimSpace(r.URL.Query().Get("class"))
 		if flightIDsParam == "" || seatClassParam == "" {
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, response.Error("flightIds and class are required"))
