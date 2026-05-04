@@ -34,11 +34,11 @@ func New(cfg config.Storage) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func formatSearchPattern(value string) string {
-	if value == "" {
-		return ""
+func formatSearchPattern(val *string) *string {
+	if val != nil {
+		return new("%" + *val + "%")
 	}
-	return "%" + value + "%"
+	return val
 }
 
 func (s *Storage) GetCities() ([]string, error) {
@@ -72,14 +72,6 @@ func (s *Storage) GetAirports(city *string) ([]models.Airport, error) {
 
 	var res []models.Airport
 
-	var cityFilter *string
-	if city != nil {
-		pattern := formatSearchPattern(*city)
-		if pattern != "" {
-			cityFilter = &pattern
-		}
-	}
-
 	query := `
 		SELECT DISTINCT
 			a.airport_code AS id,
@@ -91,7 +83,7 @@ func (s *Storage) GetAirports(city *string) ([]models.Airport, error) {
 		ORDER BY a.airport_code
 	`
 
-	if err := s.db.Select(&res, query, cityFilter); err != nil {
+	if err := s.db.Select(&res, query, formatSearchPattern(city)); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -106,16 +98,11 @@ func (s *Storage) GetAirportCodes(point string) ([]string, error) {
 	query := `
 		SELECT airport_code
 		FROM bookings.airports
-		WHERE $1::text IS NULL OR airport_code = $1 OR city = $1
+		WHERE airport_code ILIKE $1 OR city ILIKE $1
 		ORDER BY airport_code
 	`
 
-	var pointFilter *string
-	if point != "" {
-		pointFilter = &point
-	}
-
-	if err := s.db.Select(&res, query, pointFilter); err != nil {
+	if err := s.db.Select(&res, query, point); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -238,7 +225,6 @@ func (s *Storage) GetPricing(flightIDs []int, seatType models.SeatType) ([]model
 
 	var res []models.Pricing
 
-	// actual_price is based on the most recent booking for each flight.
 	query := `
 		WITH actual AS (
 			SELECT flight_id, actual_price
