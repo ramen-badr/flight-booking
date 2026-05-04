@@ -63,12 +63,6 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		if len(pricing) == 0 {
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, response.Error("flights not found"))
-			return
-		}
-
 		items := make([]pricingItem, 0, len(pricing))
 		for _, item := range pricing {
 			items = append(items, pricingItem{

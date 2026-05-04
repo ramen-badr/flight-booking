@@ -107,7 +107,7 @@ func (s *Storage) GetAirportCodes(point string) ([]string, error) {
 
 	pattern := formatSearchPattern(point)
 	if pattern == "" {
-		return res, nil
+		pattern = "%"
 	}
 
 	query := `
@@ -240,6 +240,7 @@ func (s *Storage) GetPricing(flightIDs []int, seatType models.SeatType) ([]model
 
 	var res []models.Pricing
 
+	// actual_price is based on the most recent booking for each flight.
 	query := `
 		WITH actual AS (
 			SELECT flight_id, actual_price
