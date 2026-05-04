@@ -40,11 +40,11 @@ func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		from := r.URL.Query().Get("from")
-		to := r.URL.Query().Get("to")
-		dateParam := r.URL.Query().Get("date")
-		seatClassParam := r.URL.Query().Get("class")
-		connectionsParam := r.URL.Query().Get("connections")
+		from := strings.TrimSpace(r.URL.Query().Get("from"))
+		to := strings.TrimSpace(r.URL.Query().Get("to"))
+		dateParam := strings.TrimSpace(r.URL.Query().Get("date"))
+		seatClassParam := strings.TrimSpace(r.URL.Query().Get("class"))
+		connectionsParam := strings.TrimSpace(r.URL.Query().Get("connections"))
 
 		if from == "" || to == "" || dateParam == "" || seatClassParam == "" {
 			render.Status(r, http.StatusBadRequest)
