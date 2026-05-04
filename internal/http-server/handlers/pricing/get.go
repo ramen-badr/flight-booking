@@ -26,7 +26,7 @@ type pricingItem struct {
 
 func Get(log *slog.Logger, store storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.pricing.get.New"
+		const op = "handlers.pricing.Get"
 
 		log = log.With(
 			slog.String("op", op),
