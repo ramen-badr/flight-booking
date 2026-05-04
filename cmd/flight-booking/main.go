@@ -12,6 +12,7 @@ import (
 	"flight-booking/internal/http-server/handlers/bookings"
 	"flight-booking/internal/http-server/handlers/checkin"
 	"flight-booking/internal/http-server/handlers/cities"
+	"flight-booking/internal/http-server/handlers/pricing"
 	"flight-booking/internal/http-server/handlers/routes"
 	"flight-booking/internal/http-server/middleware/mwLogger"
 	"flight-booking/internal/lib/logger/sLogger"
@@ -42,6 +43,7 @@ func main() {
 	router.Get("/airports/{airportID}/inbound", airports.GetInbound(log, store))
 	router.Get("/airports/{airportID}/outbound", airports.GetOutbound(log, store))
 	router.Get("/cities", cities.Get(log, store))
+	router.Get("/pricing", pricing.Get(log, store))
 	router.Get("/routes", routes.Get(log, store))
 	router.Post("/bookings", bookings.Create(log, store))
 	router.Post("/check-in", checkin.Create(log, store))

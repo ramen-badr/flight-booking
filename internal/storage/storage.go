@@ -24,6 +24,7 @@ type Storage interface {
 	GetOutboundSchedule(airportID string) ([]models.Route, error)
 	GetFlights(departureDate time.Time, seatType models.SeatType) ([]models.Flight, error)
 	GetFlightPrices(flightIDs []int, seatType models.SeatType) (map[int]decimal.Decimal, error)
+	GetPricing(flightIDs []int, seatType models.SeatType) ([]models.Pricing, error)
 	SaveBooking(req models.Booking) error
 	GetTicketSeatType(ticketID string, flightID int) (models.SeatType, error)
 	GetSeatTypeForFlightSeat(flightID int, seatID string) (models.SeatType, error)

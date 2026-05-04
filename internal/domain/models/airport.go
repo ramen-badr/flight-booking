@@ -1,6 +1,7 @@
 package models
 
 type Airport struct {
-	ID   string
-	Name string
+	ID       string
+	Name     string
+	CityName string
 }
